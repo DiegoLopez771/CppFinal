@@ -1,0 +1,104 @@
+//Using Hash Table and Doubly Linked List allows us to access, search, insert, and delete with O(1)
+#include <iostream>
+#include <string>
+#include <fstream>
+
+class Book{
+private:
+    //Data about book
+    int BookID;
+    std::string Title;
+    std::string Author;
+    int Year;
+    enum class Category {
+        Science, History, Fiction, Psychology, Technology, Other
+    };
+    Category category;
+    bool Available;
+
+    //Converts enum to string
+    std::string getCategoryString(Category c) const {
+        switch (c) {
+            case Category::Science: return "Science";
+            case Category::History: return "History";
+            case Category::Fiction: return "Fiction";
+            case Category::Psychology: return "Psychology";
+            case Category::Technology: return "Technology";
+            case Category::Other: return "Other";
+            default: return "Unknown";
+        }
+    }
+
+public:
+    //Constructor
+    Book(int id = 0, std::string t = "", std::string a = "", int y = 0, Category c = Category::Other) {
+        BookID = id;
+        Title = t;
+        Author = a;
+        Year = y;
+        Available = true; 
+        category = c;
+    }
+
+    //Overload << operator
+    void print(std::ostream& output) const{
+        output/*counts as std::cout*/ << BookID << ", " << Title << ", " << Author << ", " << Year << ", " << getCategoryString(category) << ", " << (Available? "Available" : "Borrowed");
+    }
+};
+//Overload << operator
+std::ostream& operator<<(std::ostream& output, const Book& b){
+    b.print(output);
+    return output;
+}
+
+//Linked List Nodes
+template <typename T>
+class Node{
+public:
+    T data;
+    Node* next;
+    Node* prev;
+    //constructor
+    Node(const T& d = T(), Node *n = nullptr, Node* p = nullptr) : data(d), next(n), prev(p){};
+};
+
+template <typename T>
+class DoublyLinkedList{
+private: 
+    Node<T> *dummyHead;
+    Node<T> *dummyTail;
+public:
+    DoublyLinkedList(){
+        dummyHead = new Node<T>(T(), nullptr);
+        dummyTail = new Node<T>(T(), nullptr);
+        dummyHead->next = dummyTail;
+        dummyTail->prev = dummyHead;
+    }
+    Node<T>* zeroth(){
+        return dummyHead;
+    }
+    Node<T>* first(){
+        return dummyHead->next;
+    }
+    const Node<T>* first() const{
+        return dummyHead->next;
+    }
+    bool isEmpty() const{
+        return dummyHead->next == dummyTail;
+    }
+    void remove(Node<T>* target){
+        target->prev->next = target->next;
+        target->next->prev = target->prev;
+        delete target;
+    }
+    void makeEmpty(){
+        while(!isEmpty()){
+            remove(first());
+        }
+    }
+    ~DoublyLinkedList(){
+        makeEmpty();
+        delete dummyHead;
+        delete dummyTail;
+    }
+};
