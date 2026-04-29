@@ -102,4 +102,41 @@ public:
         delete dummyTail;
     }
 };
-//Does this work?
+
+void displayMenu(){
+    std::vector<std::string> options = {
+        "1. Add a new book",
+        "2. Remove book", 
+        "3. Search for book", 
+        "4. Display all books", 
+        "5. Borrow a book", 
+        "6. Return a book", 
+        "7. Exit program"
+    };
+    for(std::string s : options){
+        std::cout << s << "\n";
+    }
+}
+
+int main(){
+    DoublyLinkedList<Book> myLibrary;
+    bool keepRunning = true;
+    int option;
+    while(keepRunning){
+        displayMenu();
+        std::cout << "Input option number";
+        std::cin >> option;
+        switch(option){
+            case 1:addBook();
+            case 2:removeBook();
+            case 3:searchBook();
+            case 4:displayAll();
+            case 5:borrowBook();
+            case 6:returnBook();
+            case 7:keepRunning = false;
+        }        
+    }
+
+
+    return 0;
+}
