@@ -2,10 +2,8 @@
 #include <iostream>
 #include <string>
 #include <fstream>
-#include <map>
 #include <chrono>
 #include <thread>
-#include <vector>
 #include <limits>
 #include <utility>
 #include <stdexcept>
@@ -106,14 +104,21 @@ private:
 
     //The Hash Function: Maps a key to an array index
     int hashFunction(K key) const{
-        return key%capacity;
+        return abs(key) % capacity;
+    }
+    int hashFunction(std::string key) const{
+        int hash = 0;
+        for(char c : key){
+            hash = abs((hash * 31 + c)) % capacity;
+        }
+        return hash;
     }
 
 public:
     //Constructor
     HashTable(int cap = 100){
         capacity = cap;
-        current size = 0;
+        currentSize = 0;
         table = new HashNode<K, V>*[capacity];
 
         //Initialize all buckets to nullptr
@@ -255,7 +260,7 @@ public:
     
     //Library Management functions
     bool addBook(const T& newData) {
-        if (indexMap.search(newData.getID()) != indexMap.end()) {
+        if (indexMap.search(newData.getID()) != nullptr) {
             return false; // ID already exists
         }
         Node<T>* newNode = new Node<T>(newData);
@@ -369,7 +374,6 @@ void addBook(DoublyLinkedList<Book>* activeLibrary) {
 void removeBook(DoublyLinkedList<Book>* activeLibrary) {
     if (activeLibrary->isEmpty()) {
         throw std::runtime_error("The library is empty. Nothing to remove.");
-        return;
     }
     int removeID;
     std::cout << "Enter BookID to remove: "; std::cin >> removeID;
@@ -489,7 +493,7 @@ void returnBook(DoublyLinkedList<Book>* activeLibrary) {
 }
 
 void displayMenu() {
-    std::vector<std::string> options = {
+    std::string options[] = {
         "1. Add a new book",
         "2. Remove book",
         "3. Search for book",
@@ -499,7 +503,7 @@ void displayMenu() {
         "7. Exit program"
     };
     std::cout << "\n";
-    for (std::string s : options) {
+    for (const std::string& s : options) {
         std::cout << s << "\n";
     }
 }
@@ -559,13 +563,14 @@ int main() {
     std::cout << "  ENTER twice to confirm and save it.\n";
     std::cout << "========================================\n\n";
     
-    std::map<std::string, DoublyLinkedList<Book>*> librarySystem;
+    HashTable<std::string, DoublyLinkedList<Book>*> librarySystem(10);
     std::string libName;
     std::cout << "Enter new library name: "; std::getline(std::cin, libName);
     waitForDoubleEnter();
 
-    librarySystem[libName] = new DoublyLinkedList<Book>();
-    DoublyLinkedList<Book>* activeLibrary = librarySystem[libName];
+    DoublyLinkedList<Book>* newLib = new DoublyLinkedList<Book>();
+    librarySystem.insert(libName, newLib);
+    DoublyLinkedList<Book>* activeLibrary = librarySystem.search(libName);
     std::cout << "Library '" << libName << "' created. \n";
 
     initializeExamples(activeLibrary);
@@ -600,9 +605,7 @@ int main() {
             std::cout << "\n[EXCEPTION CAUGHT]: " << e.what() << "\n";
         }
     }
-    for (auto const& pair : librarySystem) {
-        delete pair.second;
-    }
+    delete newLib;
     std::cout << "Memory cleared. Exiting program.\n";
     std::this_thread::sleep_for(std::chrono::seconds(3));
     return 0;
