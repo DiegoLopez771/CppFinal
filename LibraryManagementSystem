@@ -9,6 +9,7 @@
 #include <vector>
 #include <limits>
 #include <utility>
+#include <stdexcept>
 
 //Helper Function
 void waitForDoubleEnter(){
@@ -163,7 +164,7 @@ public:
         return true;
     }
 
-    //Search by ID only
+    //Search functions
     Node<T>* searchBook(int targetID) {
         auto it = indexMap.find(targetID);
         if (it != indexMap.end()) {
@@ -172,17 +173,32 @@ public:
         return nullptr;
     }
 
-    //Search by ID, Category, and Title
-    Node<T>* searchBook(int id, int cat, const std::string& title) {
-        Node<T>* target = searchBook(id);
+    Node<T>* searchBook(const std::string& title) {
+        Node<T>* current = dummyHead->next;
         
-        if (target != nullptr) {
-            if (static_cast<int>(target->data.getCat()) == cat && 
-                target->data.getTitle() == title) {
-                return target; 
+        while (current != dummyTail) {
+            if (current->data.getTitle() == title) {
+                return current; // Match found
             }
+        current = current->next;
         }
-        return nullptr; 
+        return nullptr;
+    }
+
+    void searchBookByCat(int cat){
+        Node<T>* current = dummyHead->next;
+        bool foundAny = false;
+
+        while (current != dummyTail) {
+            if (static_cast<int>(current->data.getCat()) == cat) {
+                std::cout << current->data << "\n";
+                foundAny = true;
+            }
+            current = current->next;
+        }
+        if(!foundAny){
+            std::cout << "No books found in this category.\n";
+        }
     }
 
     void displayAll() const {
@@ -198,7 +214,6 @@ public:
             current = current->next;
         }
     }
-
 };
 
 void addBook(DoublyLinkedList<Book>* activeLibrary) {
@@ -226,13 +241,13 @@ void addBook(DoublyLinkedList<Book>* activeLibrary) {
     if (activeLibrary->addBook(Book(id, title, author, year, catInt))) {
         std::cout << "Book added successfully.\n";
     } else {
-        std::cout << "Error: A book with ID " << id << " already exists.\n";
+        throw std::invalid_argument("A book with ID " + std::to_string(id) + " already exists.");
     }
 }
 
 void removeBook(DoublyLinkedList<Book>* activeLibrary) {
     if (activeLibrary->isEmpty()) {
-        std::cout << "Error: The library is empty. Nothing to remove.\n";
+        throw std::runtime_error("The library is empty. Nothing to remove.");
         return;
     }
     int removeID;
@@ -243,37 +258,70 @@ void removeBook(DoublyLinkedList<Book>* activeLibrary) {
         std::cout << "Successfully removed.\n";
     }
     else {
-        std::cout << "Error: BookID not found in library.\n";
+        throw std::invalid_argument("BookID not found in library.");
     }
 }
 
+enum class SearchChoice {
+    byID = 1,
+    byTitle = 2,
+    byCategory = 3
+};
 void searchBook(DoublyLinkedList<Book>* activeLibrary) {
-    int id, intCat;
-    std::string title;
-
-    std::cout << "Enter BookID: "; std::cin >> id;
-    waitForDoubleEnter();
-
-    std::cout << "\nEnter category (0-5): "; std::cin >> intCat;
-    waitForDoubleEnter();
-
-    std::cout << "\nEnter title: "; std::getline(std::cin, title);
-    waitForDoubleEnter();
-
-    Node<Book>* foundNode = activeLibrary->searchBook(id, intCat, title);
-
-    if (foundNode != nullptr) {
-        std::cout << "\nMatch found:\n" << foundNode->data << "\n";
+    if(activeLibrary->isEmpty()){
+        throw std::runtime_error("The library is empty. Nothing to search.");
     }
-    else {
-        std::cout << "\nError: No book matches those exact details.\n";
+    int searchType;
+    std::cout << "Search by:\n1. Book ID\n2. Title\n3. Category\nEnter choice (1-3): ";
+    std::cin >> searchType;
+    waitForDoubleEnter();
+
+    SearchChoice choice = static_cast<SearchChoice>(searchType);
+
+    switch(choice){
+        case SearchChoice::byID:{
+            int id;
+            std::cout << "Enter BookID: "; std::cin >> id;
+            waitForDoubleEnter();
+            
+            Node<Book>* foundNode = activeLibrary->searchBook(id);
+            if (foundNode != nullptr) {
+                std::cout << "\nMatch found:\n" << foundNode->data << "\n";
+            } else {
+                throw std::invalid_argument("Book not found.");
+            }
+            break;
+        }
+        case SearchChoice::byTitle:{
+            std::string title;
+            std::cout << "Enter Title: "; std::getline(std::cin, title);
+            waitForDoubleEnter();
+            
+            Node<Book>* foundNode = activeLibrary->searchBook(title);
+            if (foundNode != nullptr) {
+                std::cout << "\nMatch found:\n" << foundNode->data << "\n";
+            } else {
+                throw std::invalid_argument("Book not found.");
+            }
+            break;
+        }
+        case SearchChoice::byCategory:{
+            int intCat;
+            std::cout << "Enter category (0=Science, 1=History, 2=Fiction, 3=Psychology, 4=Technology, 5=Other): "; 
+            std::cin >> intCat;
+            waitForDoubleEnter();
+            
+            activeLibrary->searchBookByCat(intCat);
+            break;
+        }
+        default:
+            throw std::invalid_argument("Invalid selection. Must be 1-3.");
     }
 }
 
 void borrowBook(DoublyLinkedList<Book>* activeLibrary) {
     if (activeLibrary->isEmpty()) {
-        std::cout << "Error: The library is empty. No books to borrow.\n";
-        return;
+        throw std::runtime_error("The library is empty. No books to borrow.");
     }
 
     int id;
@@ -287,36 +335,35 @@ void borrowBook(DoublyLinkedList<Book>* activeLibrary) {
             std::cout << target->data.getTitle() << " successfully borrowed.\n";
         }
         else {
-            std::cout << "Sorry, this book is already borrowed. \n";
+            throw std::runtime_error("Sorry, this book is already borrowed.");
         }
     }
     else {
-        std::cout << "Error: BookID not found.\n";
+        throw std::invalid_argument("BookID not found.");
     }
 }
 
 void returnBook(DoublyLinkedList<Book>* activeLibrary) {
     if (activeLibrary->isEmpty()) {
-        std::cout << "Error: The library is empty. No books to return.\n";
-        return;
+        throw std::runtime_error("The library is empty. No books to return.");
     }
-    
+
     int id;
     std::cout << "Enter BookID to return: "; std::cin >> id;
     waitForDoubleEnter();
     
     Node<Book>* target = activeLibrary->searchBook(id);
-    if (target != nullptr) {
+   if (target != nullptr) {
         if (!target->data.getAvailability()) {
             target->data.setAvailable(true);
             std::cout << target->data.getTitle() << " successfully returned.\n";
         }
         else {
-            std::cout << "This book was not borrowed.\n";
+            throw std::runtime_error("This book was not borrowed.");
         }
     }
     else {
-        std::cout << "Error: BookID not found.\n";
+        throw std::invalid_argument("BookID not found.");
     }
 }
 
@@ -336,12 +383,57 @@ void displayMenu() {
     }
 }
 
+void initializeExamples(DoublyLinkedList<Book>* activeLibrary){
+    // Science
+    activeLibrary->addBook(Book(1001, "Cosmos", "Carl Sagan", 1980, 0));
+    activeLibrary->addBook(Book(1002, "A Brief History of Time", "Stephen Hawking", 1988, 0));
+    activeLibrary->addBook(Book(1003, "The Selfish Gene", "Richard Dawkins", 1976, 0));
+    activeLibrary->addBook(Book(1004, "Astrophysics for People in a Hurry", "Neil deGrasse Tyson", 2017, 0));
+    activeLibrary->addBook(Book(1005, "The Origin of Species", "Charles Darwin", 1859, 0));
+
+    // History
+    activeLibrary->addBook(Book(1006, "Guns, Germs, and Steel", "Jared Diamond", 1997, 1));
+    activeLibrary->addBook(Book(1007, "Sapiens", "Yuval Noah Harari", 2011, 1));
+    activeLibrary->addBook(Book(1008, "The Diary of a Young Girl", "Anne Frank", 1947, 1));
+    activeLibrary->addBook(Book(1009, "A People's History of the United States", "Howard Zinn", 1980, 1));
+    activeLibrary->addBook(Book(1010, "1776", "David McCullough", 2005, 1));
+
+    // Fiction
+    activeLibrary->addBook(Book(1011, "1984", "George Orwell", 1949, 2));
+    activeLibrary->addBook(Book(1012, "To Kill a Mockingbird", "Harper Lee", 1960, 2));
+    activeLibrary->addBook(Book(1013, "The Great Gatsby", "F. Scott Fitzgerald", 1925, 2));
+    activeLibrary->addBook(Book(1014, "Pride and Prejudice", "Jane Austen", 1813, 2));
+    activeLibrary->addBook(Book(1015, "The Catcher in the Rye", "J.D. Salinger", 1951, 2));
+
+    // Psychology
+    activeLibrary->addBook(Book(1016, "Thinking, Fast and Slow", "Daniel Kahneman", 2011, 3));
+    activeLibrary->addBook(Book(1017, "Man's Search for Meaning", "Viktor E. Frankl", 1946, 3));
+    activeLibrary->addBook(Book(1018, "Quiet", "Susan Cain", 2012, 3));
+    activeLibrary->addBook(Book(1019, "The Power of Habit", "Charles Duhigg", 2012, 3));
+    activeLibrary->addBook(Book(1020, "Blink", "Malcolm Gladwell", 2005, 3));
+
+    // Technology
+    activeLibrary->addBook(Book(1021, "Code", "Charles Petzold", 1999, 4));
+    activeLibrary->addBook(Book(1022, "The Pragmatic Programmer", "Andrew Hunt", 1999, 4));
+    activeLibrary->addBook(Book(1023, "Clean Code", "Robert C. Martin", 2008, 4));
+    activeLibrary->addBook(Book(1024, "Design Patterns", "Erich Gamma", 1994, 4));
+    activeLibrary->addBook(Book(1025, "Introduction to Algorithms", "Thomas H. Cormen", 1990, 4));
+
+    // Other
+    activeLibrary->addBook(Book(1026, "The Elements of Style", "William Strunk Jr.", 1918, 5));
+    activeLibrary->addBook(Book(1027, "How to Win Friends and Influence People", "Dale Carnegie", 1936, 5));
+    activeLibrary->addBook(Book(1028, "Atomic Habits", "James Clear", 2018, 5));
+    activeLibrary->addBook(Book(1029, "The Joy of Cooking", "Irma S. Rombauer", 1931, 5));
+    activeLibrary->addBook(Book(1030, "Meditations", "Marcus Aurelius", 161, 5));
+    
+    std::cout << "30 initial records preloaded.\n";
+}
 int main() {
     std::cout << "========================================\n";
     std::cout << "    LIBRARY MANAGEMENT SYSTEM SETUP     \n";
     std::cout << "========================================\n";
     std::cout << "INSTRUCTIONS:\n";
-    std::cout << "- After typing ANY input, you must press\n";
+    std::cout << "  After typing ANY input, you must press\n";
     std::cout << "  ENTER twice to confirm and save it.\n";
     std::cout << "========================================\n\n";
     
@@ -354,6 +446,7 @@ int main() {
     DoublyLinkedList<Book>* activeLibrary = librarySystem[libName];
     std::cout << "Library '" << libName << "' created. \n";
 
+    initializeExamples(activeLibrary);
     bool keepRunning = true;
     while (keepRunning) {
         displayMenu();
@@ -366,18 +459,23 @@ int main() {
         }
         waitForDoubleEnter();
         
-        switch (option) {
-        case 1:addBook(activeLibrary); break;
-        case 2:removeBook(activeLibrary); break;
-        case 3:searchBook(activeLibrary); break;
-        case 4:activeLibrary->displayAll(); break;
-        case 5:borrowBook(activeLibrary); break;
-        case 6:returnBook(activeLibrary); break;
-        case 7:
-            keepRunning = false;
-            break;
-        default:
-            std::cout << "Invalid input. Please enter a number 1-7.\n";
+        try{
+            switch (option) {
+            case 1:addBook(activeLibrary); break;
+            case 2:removeBook(activeLibrary); break;
+            case 3:searchBook(activeLibrary); break;
+            case 4:activeLibrary->displayAll(); break;
+            case 5:borrowBook(activeLibrary); break;
+            case 6:returnBook(activeLibrary); break;
+            case 7:
+                keepRunning = false;
+                break;
+            default:
+                std::cout << "Invalid input. Please enter a number 1-7.\n";
+            }
+        }
+        catch (const std::exception& e){
+            std::cout << "\n[EXCEPTION CAUGHT]: " << e.what() << "\n";
         }
     }
     for (auto const& pair : librarySystem) {
