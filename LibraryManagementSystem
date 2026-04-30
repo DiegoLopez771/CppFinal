@@ -2,8 +2,13 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <map>
+#include <chrono>
+#include <thread>
+#include <vector>
 
-class Book{
+
+class Book {
 private:
     //Data about book
     int BookID;
@@ -19,124 +24,323 @@ private:
     //Converts enum to string
     std::string getCategoryString(Category c) const {
         switch (c) {
-            case Category::Science: return "Science";
-            case Category::History: return "History";
-            case Category::Fiction: return "Fiction";
-            case Category::Psychology: return "Psychology";
-            case Category::Technology: return "Technology";
-            case Category::Other: return "Other";
-            default: return "Unknown";
+        case Category::Science: return "Science";
+        case Category::History: return "History";
+        case Category::Fiction: return "Fiction";
+        case Category::Psychology: return "Psychology";
+        case Category::Technology: return "Technology";
+        case Category::Other: return "Other";
+        default: return "Unknown";
         }
     }
 
 public:
     //Constructor
-    Book(int id = 0, std::string t = "", std::string a = "", int y = 0, Category c = Category::Other) {
+    Book(int id = 0, std::string t = "", std::string a = "", int y = 0, int c = 0) {
         BookID = id;
         Title = t;
         Author = a;
         Year = y;
-        Available = true; 
-        category = c;
+        Available = true;
+        category = static_cast<Category>(c);
+    }
+
+    void setAvailable(bool status) {
+        Available = status;
     }
 
     //Overload << operator
-    void print(std::ostream& output) const{
-        output/*counts as std::cout*/ << BookID << ", " << Title << ", " << Author << ", " << Year << ", " << getCategoryString(category) << ", " << (Available? "Available" : "Borrowed");
+    void print(std::ostream& output) const {
+        output/*counts as std::cout*/ << BookID << ", " << Title << ", " << Author << ", " << Year << ", " << getCategoryString(category) << ", " << (Available ? "Available" : "Borrowed");
     }
+
+    int getID() const { return BookID; }
+    Category getCat() const { return category; }
+    std::string getTitle() const { return Title; }
+    int getYear() const { return Year; }
+    bool getAvailability() const { return Available; }
 };
 //Overload << operator
-std::ostream& operator<<(std::ostream& output, const Book& b){
+std::ostream& operator<<(std::ostream& output, const Book& b) {
     b.print(output);
     return output;
 }
 
 //Linked List Nodes
 template <typename T>
-class Node{
+class Node {
 public:
     T data;
     Node* next;
     Node* prev;
     //constructor
-    Node(const T& d = T(), Node *n = nullptr, Node* p = nullptr) : data(d), next(n), prev(p){};
+    Node(const T& d = T(), Node* n = nullptr, Node* p = nullptr) : data(d), next(n), prev(p) {};
 };
 
 template <typename T>
-class DoublyLinkedList{
-private: 
-    Node<T> *dummyHead;
-    Node<T> *dummyTail;
+class DoublyLinkedList {
+private:
+    Node<T>* dummyHead;
+    Node<T>* dummyTail;
 public:
-    DoublyLinkedList(){
+    //Constructor functions
+    DoublyLinkedList() {
         dummyHead = new Node<T>(T(), nullptr);
         dummyTail = new Node<T>(T(), nullptr);
         dummyHead->next = dummyTail;
         dummyTail->prev = dummyHead;
     }
-    Node<T>* zeroth(){
-        return dummyHead;
-    }
-    Node<T>* first(){
-        return dummyHead->next;
-    }
-    const Node<T>* first() const{
-        return dummyHead->next;
-    }
-    bool isEmpty() const{
-        return dummyHead->next == dummyTail;
-    }
-    void remove(Node<T>* target){
+    Node<T>* zeroth() { return dummyHead; }
+    Node<T>* first() { return dummyHead->next; }
+    const Node<T>* first() const { return dummyHead->next; }
+    //Destructor functions
+    bool isEmpty() const { return dummyHead->next == dummyTail; }
+    void remove(Node<T>* target) {
         target->prev->next = target->next;
         target->next->prev = target->prev;
         delete target;
     }
-    void makeEmpty(){
-        while(!isEmpty()){
+    void makeEmpty() {
+        while (!isEmpty()) {
             remove(first());
         }
     }
-    ~DoublyLinkedList(){
+    ~DoublyLinkedList() {
         makeEmpty();
         delete dummyHead;
         delete dummyTail;
     }
+    //Library Management functions
+    void addBook(const T& newData) {
+        Node<T>* newNode = new Node<T>(newData);
+
+        Node<T>* after = dummyTail;
+        Node<T>* before = dummyTail->prev;
+
+        newNode->prev = before;
+        newNode->next = after;
+
+        before->next = newNode;
+        after->prev = newNode;
+    }
+
+    bool removeBook(int targetID) {
+        Node<T>* current = dummyHead->next;
+        while (current != dummyTail) {
+            if (current->data.getID() == targetID) {
+                remove(current);
+                return true;
+            }
+            current = current->next;
+        }
+        return false;
+    }
+
+    Node<T>* searchBook(int targetID, int targetCat, std::string targetTitle) {
+        Node<T>* current = dummyHead->next;
+
+        while (current != dummyTail) {
+            if (current->data.getID() == targetID &&
+                static_cast<int>(current->data.getCat()) == targetCat &&
+                current->data.getTitle() == targetTitle) {
+                return current;
+            }
+            current = current->next;
+        }
+        return nullptr; // Return null if the book isn't found
+    }
+
+    Node<T>* searchByID(int targetID) {
+        Node<T>* current = dummyHead->next;
+
+        while (current != dummyTail) {
+            if (current->data.getID() == targetID) {
+                return current;
+            }
+            current = current->next;
+        }
+        return nullptr;
+    }
+
+    void displayAll() const {
+        if (isEmpty()) {
+            std::cout << "This library is empty.\n";
+            return;
+        }
+
+        Node<T>* current = dummyHead->next;
+        while (current != dummyTail) {
+            std::cout << current->data << "\n";
+            current = current->next;
+        }
+    }
+
 };
 
-void displayMenu(){
+void addBook(DoublyLinkedList<Book>* activeLibrary) {
+    int id, year, catInt;
+    std::string title, author;
+
+    std::cout << "Input book data\nBookID: \n";
+    std::cin >> id;
+    std::cin.ignore();
+    std::cout << "Title: ";
+    std::getline(std::cin, title);
+    std::cin.ignore();
+    std::cout << "\nAuthor: ";
+    std::getline(std::cin, author);
+    std::cin.ignore();
+    std::cout << "\nYear: ";
+    std::cin >> year;
+    std::cin.ignore();
+    std::cout << "\nCategories: 0=Science, 1=History, 2=Fiction, 3=Psychology, 4=Technology, 5=Other\nCategory: ";
+    std::cin >> catInt;
+
+    Book newBook(id, title, author, year, catInt);
+    activeLibrary->addBook(newBook);
+    std::cout << "Book added!\n";
+}
+
+void removeBook(DoublyLinkedList<Book>* activeLibrary) {
+    int removeID;
+    std::cout << "Enter BookID to remove: ";
+    std::cin >> removeID;
+    if (activeLibrary->removeBook(removeID)) {
+        std::cout << "Successfully removed.\n";
+    }
+    else {
+        std::cout << "Error: BookID not found in library.\n";
+    }
+}
+
+void searchBook(DoublyLinkedList<Book>* activeLibrary) {
+    int id, intCat;
+    std::string title;
+
+    std::cout << "Enter BookID: ";
+    std::cin >> id;
+    std::cin.ignore();
+
+    std::cout << "\nEnter category: ";
+    std::cin >> intCat;
+    std::cin.ignore();
+
+    std::cout << "\nEnter title: ";
+    std::getline(std::cin, title);
+
+    Node<Book>* foundNode = activeLibrary->searchBook(id, intCat, title);
+
+    if (foundNode != nullptr) {
+        std::cout << "\nMatch found.\n";
+        std::cout << foundNode->data << "\n";
+    }
+    else {
+        std::cout << "\nError: No book matches thsoe exact details.\n";
+    }
+}
+
+void borrowBook(DoublyLinkedList<Book>* activeLibrary) {
+    int id;
+    std::cout << "Enter BookID to borrow: ";
+    std::cin >> id;
+
+    Node<Book>* target = activeLibrary->searchByID(id);
+    if (target != nullptr) {
+        if (target->data.getAvailability()) {
+            target->data.setAvailable(false);
+            std::cout << target->data.getTitle() << "Book successfully borrowed.\n";
+        }
+        else {
+            std::cout << "Sorry, this book is already borrowed. \n";
+        }
+    }
+    else {
+        std::cout << "error: BookID not found.\n";
+    }
+}
+
+void returnBook(DoublyLinkedList<Book>* activeLibrary) {
+    int id;
+    std::cout << "Enter BookID to return: ";
+    std::cin >> id;
+
+    Node<Book>* target = activeLibrary->searchByID(id);
+    if (target != nullptr) {
+        if (!target->data.getAvailability()) {
+            target->data.setAvailable(true);
+            std::cout << target->data.getTitle() << " successfully returned.\n";
+        }
+        else {
+            std::cout << "This book was not borrowed.\n";
+        }
+    }
+    else {
+        std::cout << "Error: BookID not found.\n";
+    }
+}
+
+void displayAll(DoublyLinkedList<Book>* activeLibrary) {
+    std::cout << "   Full Library Catalog   \n";
+    activeLibrary->displayAll();
+    std::cout << "\n\n\n";
+}
+void displayMenu() {
     std::vector<std::string> options = {
         "1. Add a new book",
-        "2. Remove book", 
-        "3. Search for book", 
-        "4. Display all books", 
-        "5. Borrow a book", 
-        "6. Return a book", 
+        "2. Remove book",
+        "3. Search for book",
+        "4. Display all books",
+        "5. Borrow a book",
+        "6. Return a book",
         "7. Exit program"
     };
-    for(std::string s : options){
+    std::cout << "\n";
+    for (std::string s : options) {
         std::cout << s << "\n";
     }
 }
 
-int main(){
-    DoublyLinkedList<Book> myLibrary;
+int main() {
+    std::map<std::string, DoublyLinkedList<Book>*> librarySystem;
+    DoublyLinkedList<Book>* activeLibrary = nullptr;
+
+    std::string libName;
+    std::cout << "Enter new library name: ";
+    std::getline(std::cin, libName);
+
+    librarySystem[libName] = new DoublyLinkedList<Book>();
+    std::cout << "Library '" << libName << "' created. \n";
+
     bool keepRunning = true;
     int option;
-    while(keepRunning){
+    while (keepRunning) {
         displayMenu();
-        std::cout << "Input option number";
+        std::cout << "Input option number: ";
         std::cin >> option;
-        switch(option){
-            case 1:addBook();
-            case 2:removeBook();
-            case 3:searchBook();
-            case 4:displayAll();
-            case 5:borrowBook();
-            case 6:returnBook();
-            case 7:keepRunning = false;
-        }        
+        if (std::cin.fail()) {
+            std::cin.clear();
+            std::cin.ignore(10000, '\n');
+            continue;
+        }
+
+        switch (option) {
+        case 1:addBook(activeLibrary); break;
+        case 2:removeBook(activeLibrary); break;
+        case 3:searchBook(activeLibrary); break;
+        case 4:displayAll(activeLibrary); break;
+        case 5:borrowBook(activeLibrary); break;
+        case 6:returnBook(activeLibrary); break;
+        case 7:
+            keepRunning = false;
+            break;
+        default:
+            std::cout << "Invalid input. Please enter a number 1-7.\n";
+        }
     }
-
-
+    for (auto const& pair : librarySystem) {
+        delete pair.second;
+    }
+    std::cout << "Memory cleared. Exiting program.\n";
+    std::this_thread::sleep_for(std::chrono::seconds(3));
     return 0;
 }
