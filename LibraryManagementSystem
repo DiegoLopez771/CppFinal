@@ -3,7 +3,6 @@
 #include <string>
 #include <fstream>
 #include <map>
-#include <unordered_map>
 #include <chrono>
 #include <thread>
 #include <vector>
@@ -46,12 +45,12 @@ private:
 
 public:
     //Constructor
-    Book(int id = 0, std::string t = "", std::string a = "", int y = 0, int c = 0) {
+    Book(int id = 0, std::string t = "", std::string a = "", int y = 0, int c = 0, bool avail = true) {
         BookID = id;
         Title = t;
         Author = a;
         Year = y;
-        Available = true;
+        Available = avail;
         category = static_cast<Category>(c);
     }
 
@@ -88,12 +87,138 @@ public:
     Node(const T& d = T(), Node* n = nullptr, Node* p = nullptr) : data(d), next(n), prev(p) {};
 };
 
+template <typename K, typename V>
+class HashNode{
+public:
+    K key;
+    V value;
+    HashNode* next;
+
+    //Constructor
+    HashNode(K k, V v) : key(k), value(v), next(nullptr) {}
+};
+template <typename K, typename V>
+class HashTable{
+private:
+    HashNode<K, V>** table;
+    int capacity;
+    int currentSize;
+
+    //The Hash Function: Maps a key to an array index
+    int hashFunction(K key) const{
+        return key%capacity;
+    }
+
+public:
+    //Constructor
+    HashTable(int cap = 100){
+        capacity = cap;
+        current size = 0;
+        table = new HashNode<K, V>*[capacity];
+
+        //Initialize all buckets to nullptr
+        for(int i = 0; i < capacity; i++){
+            table[i] = nullptr;
+        }
+    }
+
+    //Destructor
+    ~HashTable(){
+        for(int i = 0; i < capacity; i++){
+            HashNode<K, V>* entry = table[i];
+            while(entry != nullptr){
+                HashNode<K, V>* prev = entry;
+                entry = entry->next;
+                delete prev;
+            }
+        }
+        delete[] table;
+    }
+
+    // INSERT: Add a new Key-Value pair
+    bool insert(K key, V value) {
+        int hashIndex = hashFunction(key);
+        HashNode<K, V>* prev = nullptr;
+        HashNode<K, V>* entry = table[hashIndex];
+
+        // Check for duplicate keys in this bucket's chain
+        while (entry != nullptr) {
+            if (entry->key == key) {
+                return false; // Key already exists, fail the insertion
+            }
+            prev = entry;
+            entry = entry->next;
+        }
+
+        // If we reach here, the key is unique. Insert it.
+        entry = new HashNode<K, V>(key, value);
+        
+        if (prev == nullptr) {
+            // It's the first item in this bucket
+            table[hashIndex] = entry;
+        } else {
+            // Add it to the end of the existing chain
+            prev->next = entry;
+        }
+        currentSize++;
+        return true;
+    }
+
+    // SEARCH: Find a value by its Key
+    V search(K key) {
+        int hashIndex = hashFunction(key);
+        HashNode<K, V>* entry = table[hashIndex];
+
+        // Walk through the chain at this bucket looking for the key
+        while (entry != nullptr) {
+            if (entry->key == key) {
+                return entry->value; // Match found! Return the value.
+            }
+            entry = entry->next;
+        }
+        
+        // If we exit the loop, the key wasn't found.
+        return nullptr; 
+    }
+
+    // REMOVE: Delete a Key-Value pair
+    bool remove(K key) {
+        int hashIndex = hashFunction(key);
+        HashNode<K, V>* prev = nullptr;
+        HashNode<K, V>* entry = table[hashIndex];
+
+        while (entry != nullptr) {
+            if (entry->key == key) {
+                // We found the node to delete
+                if (prev == nullptr) {
+                    // It was the first node in the bucket
+                    table[hashIndex] = entry->next;
+                } else {
+                    // It was somewhere in the middle/end of the chain
+                    prev->next = entry->next;
+                }
+                delete entry;
+                currentSize--;
+                return true;
+            }
+            prev = entry;
+            entry = entry->next;
+        }
+        return false; // Key not found
+    }
+
+    // Utility
+    bool isEmpty() const {
+        return currentSize == 0;
+    }
+};
+
 template <typename T>
 class DoublyLinkedList {
 private:
     Node<T>* dummyHead;
     Node<T>* dummyTail;
-    std::unordered_map<int, Node<T>*> indexMap;
+    HashTable<int, Node<T>*> indexMap;
 
 public:
     //Constructor functions
@@ -130,7 +255,7 @@ public:
     
     //Library Management functions
     bool addBook(const T& newData) {
-        if (indexMap.find(newData.getID()) != indexMap.end()) {
+        if (indexMap.search(newData.getID()) != indexMap.end()) {
             return false; // ID already exists
         }
         Node<T>* newNode = new Node<T>(newData);
@@ -144,7 +269,7 @@ public:
         before->next = newNode;
         after->prev = newNode;
 
-        indexMap[newData.getID()] = newNode;
+        indexMap.insert(newData.getID(), newNode);
         return true;
     }
 
@@ -156,7 +281,7 @@ public:
         }
 
         // Erase from Map first (before the node is deleted)
-        indexMap.erase(id);
+        indexMap.remove(id);
 
         // Use your existing helper function to unlink and delete the node
         remove(target);
@@ -166,11 +291,7 @@ public:
 
     //Search functions
     Node<T>* searchBook(int targetID) {
-        auto it = indexMap.find(targetID);
-        if (it != indexMap.end()) {
-            return it->second;
-        }
-        return nullptr;
+        return indexMap.search(targetID);
     }
 
     Node<T>* searchBook(const std::string& title) {
@@ -383,10 +504,10 @@ void displayMenu() {
     }
 }
 
-void initializeExamples(DoublyLinkedList<Book>* activeLibrary){
+void initializeExamples(DoublyLinkedList<Book>* activeLibrary) {
     // Science
     activeLibrary->addBook(Book(1001, "Cosmos", "Carl Sagan", 1980, 0));
-    activeLibrary->addBook(Book(1002, "A Brief History of Time", "Stephen Hawking", 1988, 0));
+    activeLibrary->addBook(Book(1002, "A Brief History of Time", "Stephen Hawking", 1988, 0, false));
     activeLibrary->addBook(Book(1003, "The Selfish Gene", "Richard Dawkins", 1976, 0));
     activeLibrary->addBook(Book(1004, "Astrophysics for People in a Hurry", "Neil deGrasse Tyson", 2017, 0));
     activeLibrary->addBook(Book(1005, "The Origin of Species", "Charles Darwin", 1859, 0));
@@ -394,40 +515,41 @@ void initializeExamples(DoublyLinkedList<Book>* activeLibrary){
     // History
     activeLibrary->addBook(Book(1006, "Guns, Germs, and Steel", "Jared Diamond", 1997, 1));
     activeLibrary->addBook(Book(1007, "Sapiens", "Yuval Noah Harari", 2011, 1));
-    activeLibrary->addBook(Book(1008, "The Diary of a Young Girl", "Anne Frank", 1947, 1));
+    activeLibrary->addBook(Book(1008, "The Diary of a Young Girl", "Anne Frank", 1947, 1, false));
     activeLibrary->addBook(Book(1009, "A People's History of the United States", "Howard Zinn", 1980, 1));
-    activeLibrary->addBook(Book(1010, "1776", "David McCullough", 2005, 1));
+    activeLibrary->addBook(Book(1010, "1776", "David McCullough", 2005, 1, false));
 
     // Fiction
-    activeLibrary->addBook(Book(1011, "1984", "George Orwell", 1949, 2));
+    activeLibrary->addBook(Book(1011, "1984", "George Orwell", 1949, 2, false));
     activeLibrary->addBook(Book(1012, "To Kill a Mockingbird", "Harper Lee", 1960, 2));
     activeLibrary->addBook(Book(1013, "The Great Gatsby", "F. Scott Fitzgerald", 1925, 2));
-    activeLibrary->addBook(Book(1014, "Pride and Prejudice", "Jane Austen", 1813, 2));
+    activeLibrary->addBook(Book(1014, "Pride and Prejudice", "Jane Austen", 1813, 2, false));
     activeLibrary->addBook(Book(1015, "The Catcher in the Rye", "J.D. Salinger", 1951, 2));
 
     // Psychology
     activeLibrary->addBook(Book(1016, "Thinking, Fast and Slow", "Daniel Kahneman", 2011, 3));
     activeLibrary->addBook(Book(1017, "Man's Search for Meaning", "Viktor E. Frankl", 1946, 3));
-    activeLibrary->addBook(Book(1018, "Quiet", "Susan Cain", 2012, 3));
+    activeLibrary->addBook(Book(1018, "Quiet", "Susan Cain", 2012, 3, false));
     activeLibrary->addBook(Book(1019, "The Power of Habit", "Charles Duhigg", 2012, 3));
     activeLibrary->addBook(Book(1020, "Blink", "Malcolm Gladwell", 2005, 3));
 
     // Technology
     activeLibrary->addBook(Book(1021, "Code", "Charles Petzold", 1999, 4));
-    activeLibrary->addBook(Book(1022, "The Pragmatic Programmer", "Andrew Hunt", 1999, 4));
+    activeLibrary->addBook(Book(1022, "The Pragmatic Programmer", "Andrew Hunt", 1999, 4, false));
     activeLibrary->addBook(Book(1023, "Clean Code", "Robert C. Martin", 2008, 4));
     activeLibrary->addBook(Book(1024, "Design Patterns", "Erich Gamma", 1994, 4));
-    activeLibrary->addBook(Book(1025, "Introduction to Algorithms", "Thomas H. Cormen", 1990, 4));
+    activeLibrary->addBook(Book(1025, "Introduction to Algorithms", "Thomas H. Cormen", 1990, 4, false));
 
     // Other
     activeLibrary->addBook(Book(1026, "The Elements of Style", "William Strunk Jr.", 1918, 5));
     activeLibrary->addBook(Book(1027, "How to Win Friends and Influence People", "Dale Carnegie", 1936, 5));
-    activeLibrary->addBook(Book(1028, "Atomic Habits", "James Clear", 2018, 5));
+    activeLibrary->addBook(Book(1028, "Atomic Habits", "James Clear", 2018, 5, false));
     activeLibrary->addBook(Book(1029, "The Joy of Cooking", "Irma S. Rombauer", 1931, 5));
     activeLibrary->addBook(Book(1030, "Meditations", "Marcus Aurelius", 161, 5));
-    
-    std::cout << "30 initial records preloaded.\n";
+
+    std::cout << "30 initial records preloaded (9 borrowed).\n";
 }
+
 int main() {
     std::cout << "========================================\n";
     std::cout << "    LIBRARY MANAGEMENT SYSTEM SETUP     \n";
